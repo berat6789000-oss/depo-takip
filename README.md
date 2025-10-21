@@ -1,1 +1,1 @@
-# depo_takip
+# depo-takip
