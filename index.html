@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Depo Takip Sistemi</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- 🔹 Sabit Logo Header -->
+  <header>
+    
+    <div class="header-buttons">
+      <button id="depoEkleBtn">➕ Depo Ekle</button>
+      <button id="depoSilBtn">🗑️ Depo Sil</button>
+      <button id="anaMenuyeDonBtn">🏠 Ana Menüye Dön</button>
+    </div>
+  </header>
+
+  <!-- 🔹 Bildirim Alanı -->
+  <div id="bildirim" class="bildirim"></div>
+
+  <!-- 🔹 ANA MENÜ (Depo Listesi) -->
+  <div id="anaMenu">
+    <h1>Depo Yönetimi</h1>
+    <div id="depoListesi" class="depo-listesi"></div>
+  </div>
+
+  <!-- 🔹 DEPO SİLME CHECKBOX MODAL -->
+  <div id="depoSilModal" class="modal">
+    <div class="modal-content">
+      <h3>Depo Sil</h3>
+      <div id="depoSilCheckboxList"></div>
+      <div class="modal-buttons">
+        <button id="depoSilOnayla">🗑️ Seçilenleri Sil</button>
+        <button id="depoSilIptal">❌ İptal</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🔹 DEPO EKRANI (ÜRÜN MENÜSÜ) -->
+  <div id="depoEkrani" style="display:none;">
+    <div class="baslik">
+      <h1 id="depoBaslik">Depo Takip Sistemi</h1>
+      <div id="tarihSaat"></div>
+    </div>
+
+    <div id="urunListesi"></div>
+
+    <div class="butonlar">
+      <button id="urunEkleBtn">➕ Ürün Ekle</button>
+      <button id="urunSilBtn">🗑️ Ürün Sil</button>
+      <button id="urunDuzenleBtn">✏️ Ürün Düzenle</button>
+      <button id="kaydetBtn">💾 Kaydet</button>
+      <button id="yazdirBtn">📝 Yazdır</button>
+      <button id="gecmisBtn">📜 Geçmişi Gör</button>
+    </div>
+
+    <div id="gecmisEkrani" style="display:none;">
+      <input type="text" id="aramaInput" placeholder="Ürün adı girin...">
+      <button id="aramaBtn">🔍 Ara</button>
+      <button id="kapatBtn">❌ Kapat</button>
+      <div id="gecmisListesi"></div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
