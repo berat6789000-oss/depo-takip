@@ -1,0 +1,1 @@
+DEPO TAKİP 1.2V
