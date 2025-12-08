@@ -1,539 +1,638 @@
-// ------------------------------
-// FALIM PİDE DEPO TAKİP SİSTEMİ
-// Tüm isteklere göre güncellenmiş versiyon
-// ------------------------------
+// ---------- DEĞİŞKENLER ----------
+let urunler = [];
+let aktifIslem = null;
+let aktifDepo = localStorage.getItem("aktifDepo");
+const depolar = JSON.parse(localStorage.getItem("depolar")) || [];
 
-// ---------- DEĞİŞKENLER & LOCALSTORAGE ----------
-let urunler = JSON.parse(localStorage.getItem("urunListesi") || "[]");
-let depolar = JSON.parse(localStorage.getItem("depolar") || "[]");
-let aktifDepo = localStorage.getItem("aktifDepo") || null;
-let aktifIslem = null; // 'sil' veya 'duzenle' - hangi işlem aktif
-
-// HTML ELEMENTLERİ
-const urunListesi = document.getElementById("urunListesi");
-const anaMenu = document.getElementById("anaMenu");
-const depoEkrani = document.getElementById("depoEkrani");
-const depoBaslikElem = document.getElementById("depoBaslik");
-const depoListesiElem = document.getElementById("depoListesi");
-const bildirimElem = document.getElementById("bildirim");
-const depoSilModal = document.getElementById("depoSilModal");
-
-// ---------- TARİH & SAAT ----------
-function tarihSaatGuncelle() {
-  const now = new Date();
-  const aylar = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
-  const tarihSaatElem = document.getElementById("tarihSaat");
-  if (!tarihSaatElem) return;
-  tarihSaatElem.textContent =
-    `${now.getDate()} ${aylar[now.getMonth()]} ${now.getFullYear()}, ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
-}
-setInterval(tarihSaatGuncelle, 1000);
-
-// ---------- BİLDİRİM FONKSİYONU ----------
-function bildirimGoster(mesaj, sure = 3000) {
-  bildirimElem.textContent = mesaj;
-  bildirimElem.style.display = 'block';
-  setTimeout(() => {
-    bildirimElem.style.display = 'none';
-  }, sure);
-}
-
-// ---------- DEPO BAZLI ANAHTARLAR ----------
-function depoUrunKey(ad) { return `urunListesi_${ad}`; }
-function depoGecmisKey(ad) { return `urunGecmisi_${ad}`; }
-function depoVeriKey(ad) { return `depoVerileri_${ad}`; }
-
-// ---------- DEPO LİSTESİNİ GÖSTER ----------
-function depoListesiniGuncelle() {
-  depoListesiElem.innerHTML = '';
-  depolar.forEach(depoAd => {
-    const depoItem = document.createElement('div');
-    depoItem.className = 'depo-item';
-    depoItem.textContent = depoAd;
-    depoItem.addEventListener('click', () => {
-      aktifDepo = depoAd;
-      localStorage.setItem("aktifDepo", aktifDepo);
-      depoAc();
-    });
-    depoListesiElem.appendChild(depoItem);
-  });
-}
-
-// ---------- DEPO SİLME MODAL ----------
-document.getElementById("depoSilBtn").addEventListener("click", () => {
-  if (depolar.length === 0) {
-    bildirimGoster("⚠️ Silinecek depo bulunamadı!");
-    return;
-  }
-  
-  const checkboxList = document.getElementById("depoSilCheckboxList");
-  checkboxList.innerHTML = '';
-  
-  depolar.forEach(depoAd => {
-    const checkboxItem = document.createElement('div');
-    checkboxItem.className = 'checkbox-item';
-    checkboxItem.innerHTML = `
-      <input type="checkbox" id="depo_${depoAd}" value="${depoAd}">
-      <label for="depo_${depoAd}">${depoAd}</label>
-    `;
-    checkboxList.appendChild(checkboxItem);
-  });
-  
-  depoSilModal.style.display = 'flex';
-});
-
-document.getElementById("depoSilIptal").addEventListener("click", () => {
-  depoSilModal.style.display = 'none';
-});
-
-document.getElementById("depoSilOnayla").addEventListener("click", () => {
-  const secilenDepolar = Array.from(document.querySelectorAll('#depoSilCheckboxList input:checked'))
-    .map(checkbox => checkbox.value);
-  
-  if (secilenDepolar.length === 0) {
-    bildirimGoster("⚠️ Lütfen silmek için depo seçin!");
-    return;
-  }
-  
-  if (!confirm(`${secilenDepolar.join(', ')} depolarını silmek istediğinize emin misiniz?`)) {
-    return;
-  }
-  
-  secilenDepolar.forEach(depoAd => {
-    depolar = depolar.filter(d => d !== depoAd);
-    // Depo verilerini temizle
-    localStorage.removeItem(depoUrunKey(depoAd));
-    localStorage.removeItem(depoVeriKey(depoAd));
-    localStorage.removeItem(depoGecmisKey(depoAd));
+// ---------- SAYFA YÜKLENDİĞİNDE ÇALIŞACAK ANA FONKSİYON ----------
+function uygulamayiBaslat() {
+    console.log("Uygulama başlatılıyor...");
     
-    // Eğer aktif depo silindiyse
-    if (aktifDepo === depoAd) {
-      aktifDepo = null;
-      localStorage.removeItem("aktifDepo");
-      depoEkrani.style.display = "none";
-      anaMenu.style.display = "block";
-    }
-  });
-  
-  localStorage.setItem("depolar", JSON.stringify(depolar));
-  depoListesiniGuncelle();
-  depoSilModal.style.display = 'none';
-  bildirimGoster(`✅ ${secilenDepolar.length} depo silindi!`);
-});
+    // Elementleri kontrol et
+    const gerekliElementler = [
+        "anaMenu", "depoEkrani", "depoBaslik", "depoListesi",
+        "urunListesi", "urunEkleBtn", "urunSilBtn", "urunDuzenleBtn",
+        "kaydetBtn", "yazdirBtn", "gecmisBtn", "raporlarBtn",
+        "yeniDepoBtn", "depoCikisBtn"
+    ];
 
-// ---------- MODAL DIŞINA TIKLANINCA KAPATMA ----------
-depoSilModal.addEventListener('click', (e) => {
-  if (e.target === depoSilModal) {
-    depoSilModal.style.display = 'none';
-  }
-});
-
-// ---------- ESC TUŞU İLE MODAL KAPATMA ----------
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && depoSilModal.style.display === 'flex') {
-    depoSilModal.style.display = 'none';
-  }
-});
-
-// ---------- DEPO EKLE ----------
-document.getElementById("depoEkleBtn").addEventListener("click", () => {
-  const depoAd = prompt("Yeni depo adı girin:");
-  if (!depoAd || depoAd.trim() === "") {
-    bildirimGoster("⚠️ Depo adı boş olamaz!");
-    return;
-  }
-  
-  const temizAd = depoAd.trim();
-  if (depolar.includes(temizAd)) {
-    bildirimGoster("⚠️ Bu depo zaten mevcut!");
-    return;
-  }
-  
-  depolar.push(temizAd);
-  localStorage.setItem("depolar", JSON.stringify(depolar));
-  
-  // Yeni depo için boş veri yapıları oluştur
-  localStorage.setItem(depoUrunKey(temizAd), JSON.stringify([]));
-  localStorage.setItem(depoVeriKey(temizAd), JSON.stringify({}));
-  localStorage.setItem(depoGecmisKey(temizAd), JSON.stringify({}));
-  
-  depoListesiniGuncelle();
-  bildirimGoster(`✅ ${temizAd} deposu eklendi!`);
-});
-
-// ---------- ANA MENÜYE DÖN ----------
-document.getElementById("anaMenuyeDonBtn").addEventListener("click", () => {
-  aktifDepo = null;
-  localStorage.removeItem("aktifDepo");
-  depoEkrani.style.display = "none";
-  anaMenu.style.display = "block";
-  aktifIslem = null;
-  butonlariNormalModaGetir();
-});
-
-// ---------- ÜRÜNLERİ YÜKLE ----------
-function urunleriYukle() {
-  if (!urunListesi) return;
-  urunListesi.innerHTML = "";
-
-  const kayitli = aktiveKayitliObj();
-  const urunGecmisi = aktiveGecmisObj();
-
-  urunler.forEach(ad => {
-    const div = document.createElement("div");
-    div.classList.add("urun-karti");
-
-    div.innerHTML = `
-      <label>${ad}</label>
-      <input type="number" id="${cssIdFromName(ad)}" placeholder="Miktar" value="${kayitli[ad]||0}">
-    `;
-    urunListesi.appendChild(div);
-
-    const input = div.querySelector("input[type='number']");
-    input.addEventListener("change", () => {
-      const kayitliLocal = aktiveKayitliObj();
-      const gecmisLocal = aktiveGecmisObj();
-
-      const oncekiMiktar = parseFloat(kayitliLocal[ad]||0);
-      const yeniMiktar = parseFloat(input.value||0);
-      const fark = yeniMiktar - oncekiMiktar;
-      
-      if (fark === 0) return;
-
-      const now = new Date();
-      const tarihStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes()}`;
-
-      kayitliLocal[ad] = yeniMiktar;
-
-      const hareket = {tarih: tarihStr, degisim: fark, yeniMiktar: yeniMiktar};
-      gecmisLocal[ad] = gecmisLocal[ad] || [];
-      gecmisLocal[ad].push(hareket);
-
-      kaydetAktifKayitliObj(kayitliLocal);
-      kaydetAktifGecmisObj(gecmisLocal);
-
-      renkleriGuncelle();
+    gerekliElementler.forEach(id => {
+        const elem = document.getElementById(id);
+        if (!elem) {
+            console.error(`Element bulunamadı: ${id}`);
+        } else {
+            console.log(`Element yüklendi: ${id}`);
+        }
     });
-  });
 
-  renkleriGuncelle();
+    // Event listener'ları kur
+    eventListenerlariKur();
+    
+    // Depo listesini güncelle*ğ
+    depoListesiniGuncelle();
+    
+    // Sayfa durumunu ayarla
+    sayfaDurumunuAyarla();
+    
+    console.log("Uygulama başlatma tamamlandı");
 }
 
-// ---------- CSS ID HELPER ----------
-function cssIdFromName(name) {
-  return "urun_" + name.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_\-]/g, "");
+// ---------- EVENT LISTENER'LARI KUR ----------
+function eventListenerlariKur() {
+    console.log("Event listener'lar kuruluyor...");
+
+    // Depo butonları
+    safeAddEventListener("yeniDepoBtn", "click", yeniDepoOlustur);
+    safeAddEventListener("depoCikisBtn", "click", depoCikis);
+
+    // Ürün işlem butonları
+    safeAddEventListener("urunEkleBtn", "click", urunEkle);
+    safeAddEventListener("urunSilBtn", "click", urunSil);
+    safeAddEventListener("urunDuzenleBtn", "click", urunDuzenle);
+    safeAddEventListener("kaydetBtn", "click", verileriKaydet);
+    safeAddEventListener("yazdirBtn", "click", raporYazdir);
+    safeAddEventListener("gecmisBtn", "click", gecmisGoster);
+    safeAddEventListener("raporlarBtn", "click", raporlariGoster);
+
+    // Geçmiş ekranı butonları
+    safeAddEventListener("kapatBtn", "click", gecmisKapat);
+    safeAddEventListener("aramaBtn", "click", gecmisAra);
+    safeAddEventListener("gecmisTemizleBtn", "click", gecmisTemizle);
+    safeAddEventListener("gecmisYazdirBtn", "click", gecmisYazdir);
+
+    // Rapor ekranı butonları
+    safeAddEventListener("raporKapatBtn", "click", raporlariKapat);
+
+    // Depo silme modal butonları
+    safeAddEventListener("depoSilOnay", "click", depoSilOnay);
+    safeAddEventListener("depoSilIptal", "click", depoSilIptal);
+
+    console.log("Event listener'lar kuruldu");
 }
 
-// ---------- RENK GÜNCELLEME ----------
-function renkleriGuncelle(){
-  urunler.forEach(ad => {
-    const input = document.getElementById(cssIdFromName(ad));
-    if (input) {
-      const val = parseFloat(input.value||0);
-      if (val === 0 || val === 1) {
-        input.style.backgroundColor = "#c82333";
-        input.style.color = "white";
-      } else {
-        input.style.backgroundColor = "white";
-        input.style.color = "black";
-      }
+// ---------- GÜVENLİ EVENT LISTENER EKLEME ----------
+function safeAddEventListener(elementId, eventType, handler) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.addEventListener(eventType, handler);
+        console.log(`Event listener eklendi: ${elementId}`);
+    } else {
+        console.error(`Event listener eklenemedi: ${elementId} bulunamadı`);
     }
-  });
+}
+
+// ---------- DEPO İŞLEMLERİ ----------
+function yeniDepoOlustur() {
+    console.log("Yeni depo oluştur butonu tıklandı");
+    const depoAdi = prompt("Yeni depo adını girin:");
+    if (!depoAdi || depoAdi.trim() === "") {
+        bildirimGoster("⚠️ Depo adı boş olamaz!", "uyari");
+        return;
+    }
+    
+    const temizDepoAdi = depoAdi.trim();
+    if (depolar.includes(temizDepoAdi)) {
+        bildirimGoster("⚠️ Bu depo zaten mevcut!", "uyari");
+        return;
+    }
+    
+    depolar.push(temizDepoAdi);
+    localStorage.setItem("depolar", JSON.stringify(depolar));
+    depoListesiniGuncelle();
+    bildirimGoster(`✅ ${temizDepoAdi} deposu oluşturuldu!`);
+}
+
+function depoCikis() {
+    console.log("Depo çıkış butonu tıklandı");
+    aktifDepo = null;
+    localStorage.removeItem("aktifDepo");
+    document.getElementById("anaMenu").style.display = "block";
+    document.getElementById("depoEkrani").style.display = "none";
+    urunler = JSON.parse(localStorage.getItem("urunListesi") || "[]");
+    bildirimGoster("Çıkış yapıldı!");
+}
+
+// ---------- DEPO LİSTESİNİ GÜNCELLE ----------
+function depoListesiniGuncelle() {
+    const depoListesi = document.getElementById("depoListesi");
+    if (!depoListesi) {
+        console.error("depoListesi elementi bulunamadı");
+        return;
+    }
+    
+    depoListesi.innerHTML = '';
+    
+    if (depolar.length === 0) {
+        depoListesi.innerHTML = '<p class="bos-liste">Henüz depo oluşturulmamış</p>';
+        return;
+    }
+    
+    depolar.forEach(depo => {
+        const depoItem = document.createElement('div');
+        depoItem.className = 'depo-item';
+        depoItem.innerHTML = `
+            <span>${depo}</span>
+            <div class="depo-actions">
+                <button class="ac-btn" onclick="depoAc('${depo}')">Aç</button>
+                <button class="sil-btn" onclick="depoSilModalAc('${depo}')">Sil</button>
+            </div>
+        `;
+        depoListesi.appendChild(depoItem);
+    });
+}
+
+// ---------- DEPO AÇ ----------
+function depoAc(depoAdi) {
+    console.log(`Depo açılıyor: ${depoAdi}`);
+    aktifDepo = depoAdi;
+    localStorage.setItem("aktifDepo", aktifDepo);
+    
+    document.getElementById("anaMenu").style.display = "none";
+    document.getElementById("depoEkrani").style.display = "block";
+    
+    const depoBaslikElem = document.getElementById("depoBaslik");
+    if (depoBaslikElem) {
+        depoBaslikElem.textContent = `${aktifDepo} Deposu`;
+    }
+    
+    urunler = JSON.parse(localStorage.getItem(`urunListesi_${aktifDepo}`)) || [];
+    urunleriYukle();
+    butonlariNormalModaGetir();
+    bildirimGoster(`${aktifDepo} deposu açıldı!`);
+}
+
+// ---------- DEPO SİL MODAL ----------
+function depoSilModalAc(depoAdi) {
+    console.log(`Depo sil modal açılıyor: ${depoAdi}`);
+    const depoSilModal = document.getElementById("depoSilModal");
+    if (depoSilModal) {
+        depoSilModal.style.display = 'block';
+        depoSilModal.setAttribute('data-depo', depoAdi);
+        document.getElementById('silinecekDepoAdi').textContent = depoAdi;
+    }
+}
+
+function depoSilOnay() {
+    const depoSilModal = document.getElementById("depoSilModal");
+    const depoAdi = depoSilModal.getAttribute('data-depo');
+    console.log(`Depo siliniyor: ${depoAdi}`);
+    
+    // Aktif depo siliniyorsa ana menüye dön
+    if (aktifDepo === depoAdi) {
+        aktifDepo = null;
+        localStorage.removeItem("aktifDepo");
+        document.getElementById("anaMenu").style.display = "block";
+        document.getElementById("depoEkrani").style.display = "none";
+    }
+    
+    // Depoyu listeden kaldır
+    const index = depolar.indexOf(depoAdi);
+    if (index > -1) {
+        depolar.splice(index, 1);
+        localStorage.setItem("depolar", JSON.stringify(depolar));
+    }
+    
+    // Depo verilerini temizle
+    localStorage.removeItem(`depoVerileri_${depoAdi}`);
+    localStorage.removeItem(`urunGecmisi_${depoAdi}`);
+    localStorage.removeItem(`urunListesi_${depoAdi}`);
+    
+    depoListesiniGuncelle();
+    depoSilModal.style.display = 'none';
+    bildirimGoster(`✅ ${depoAdi} deposu silindi!`);
+}
+
+function depoSilIptal() {
+    const depoSilModal = document.getElementById("depoSilModal");
+    depoSilModal.style.display = 'none';
+}
+
+// ---------- ÜRÜN İŞLEMLERİ ----------
+function urunEkle() {
+    console.log("Ürün ekle butonu tıklandı");
+    const yeniUrun = prompt("Yeni ürün adını girin:");
+    if (!yeniUrun || yeniUrun.trim() === "") {
+        bildirimGoster("⚠️ Ürün adı boş olamaz!", "uyari");
+        return;
+    }
+    
+    const ad = yeniUrun.trim();
+    if (urunler.includes(ad)) {
+        bildirimGoster("⚠️ Bu ürün zaten mevcut!", "uyari");
+        return;
+    }
+    
+    urunler.push(ad);
+    kaydetUrunListesiAktif();
+    urunleriYukle();
+    bildirimGoster(`✅ ${ad} eklendi!`);
+}
+
+function urunSil() {
+    console.log("Ürün sil butonu tıklandı");
+    
+    if (aktifIslem === 'sil') {
+        const secilen = Array.from(document.querySelectorAll('.secim:checked'));
+        if (secilen.length === 0) {
+            bildirimGoster("⚠️ Lütfen silmek için ürün seçin!", "uyari");
+            return;
+        }
+
+        if (!confirm(`Seçilen ${secilen.length} ürünü silmek istediğinize emin misiniz?`)) {
+            return;
+        }
+
+        const kayitli = aktiveKayitliObj();
+        const urunGecmisi = aktiveGecmisObj();
+
+        secilen.forEach(cb => {
+            const urunKarti = cb.closest('.urun-karti');
+            if (!urunKarti) return;
+            
+            const label = urunKarti.querySelector('label');
+            if (!label) return;
+            
+            const ad = label.textContent.trim();
+            urunler = urunler.filter(u => u !== ad);
+            delete kayitli[ad];
+            delete urunGecmisi[ad];
+        });
+
+        kaydetAktifKayitliObj(kayitli);
+        kaydetAktifGecmisObj(urunGecmisi);
+        kaydetUrunListesiAktif();
+        urunleriYukle();
+        butonlariNormalModaGetir();
+        bildirimGoster(`✅ ${secilen.length} ürün silindi!`);
+        
+    } else {
+        butonlariNormalModaGetir();
+        aktifIslem = 'sil';
+        document.getElementById("urunSilBtn").classList.add('active');
+        
+        document.querySelectorAll('.urun-karti').forEach(kart => {
+            let checkbox = kart.querySelector('.secim');
+            if (!checkbox) {
+                checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'secim';
+                kart.insertBefore(checkbox, kart.firstChild);
+            }
+            checkbox.style.display = 'inline-block';
+        });
+        
+        bildirimGoster("Silmek için ürünleri seçin");
+    }
+}
+
+function urunDuzenle() {
+    console.log("Ürün düzenle butonu tıklandı");
+    
+    if (aktifIslem === 'duzenle') {
+        const secilen = Array.from(document.querySelectorAll('.secim:checked'));
+        if (secilen.length === 0) {
+            bildirimGoster("⚠️ Lütfen düzenlemek için ürün seçin!", "uyari");
+            return;
+        }
+        if (secilen.length > 1) {
+            bildirimGoster("⚠️ Lütfen sadece bir ürün seçin!", "uyari");
+            return;
+        }
+
+        const urunKarti = secilen[0].closest('.urun-karti');
+        if (!urunKarti) return;
+        
+        const label = urunKarti.querySelector('label');
+        if (!label) return;
+        
+        const eskiAd = label.textContent.trim();
+        const yeniAd = prompt(`"${eskiAd}" yeni adı:`, eskiAd);
+        if (!yeniAd || yeniAd.trim() === "" || yeniAd === eskiAd) {
+            butonlariNormalModaGetir();
+            return;
+        }
+        
+        const temizYeniAd = yeniAd.trim();
+        if (urunler.includes(temizYeniAd)) {
+            bildirimGoster("⚠️ Bu isim zaten mevcut!", "uyari");
+            return;
+        }
+
+        urunler[urunler.indexOf(eskiAd)] = temizYeniAd;
+
+        const kayitli = aktiveKayitliObj();
+        kayitli[temizYeniAd] = kayitli[eskiAd];
+        delete kayitli[eskiAd];
+        kaydetAktifKayitliObj(kayitli);
+
+        const urunGecmisi = aktiveGecmisObj();
+        urunGecmisi[temizYeniAd] = urunGecmisi[eskiAd];
+        delete urunGecmisi[eskiAd];
+        kaydetAktifGecmisObj(urunGecmisi);
+
+        kaydetUrunListesiAktif();
+        urunleriYukle();
+        butonlariNormalModaGetir();
+        bildirimGoster("✅ Ürün adı güncellendi!");
+        
+    } else {
+        butonlariNormalModaGetir();
+        aktifIslem = 'duzenle';
+        document.getElementById("urunDuzenleBtn").classList.add('active');
+        
+        document.querySelectorAll('.urun-karti').forEach(kart => {
+            let checkbox = kart.querySelector('.secim');
+            if (!checkbox) {
+                checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'secim';
+                kart.insertBefore(checkbox, kart.firstChild);
+            }
+            checkbox.style.display = 'inline-block';
+        });
+        
+        bildirimGoster("Düzenlemek için bir ürün seçin");
+    }
+}
+
+function verileriKaydet() {
+    console.log("Kaydet butonu tıklandı");
+    kaydetUrunListesiAktif();
+    bildirimGoster("✅ Tüm değişiklikler kaydedildi!");
+}
+
+// ---------- RAPOR İŞLEMLERİ ----------
+function raporYazdir() {
+    console.log("Yazdır butonu tıklandı");
+    try {
+        const veriler = aktiveKayitliObj();
+        let csv = "Ürün Adı,Miktar\n";
+        Object.keys(veriler).forEach(ad => {
+            csv += `"${ad}",${veriler[ad]}\n`;
+        });
+        
+        const blob = new Blob(["\uFEFF" + csv], {type: "text/csv;charset=utf-8;"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = (aktifDepo ? `${aktifDepo}_depo_raporu.csv` : "depo_raporu.csv");
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        bildirimGoster("📝 CSV dosyası indirildi!");
+    } catch (error) {
+        bildirimGoster("❌ CSV oluşturulurken hata!", "hata");
+        console.error("CSV oluşturma hatası:", error);
+    }
+}
+
+function gecmisGoster() {
+    console.log("Geçmiş butonu tıklandı");
+    document.getElementById("urunListesi").style.display = "none";
+    document.querySelector(".butonlar").style.display = "none";
+    document.getElementById("gecmisEkrani").style.display = "block";
+}
+
+function gecmisKapat() {
+    document.getElementById("urunListesi").style.display = "block";
+    document.querySelector(".butonlar").style.display = "flex";
+    document.getElementById("gecmisEkrani").style.display = "none";
+    document.getElementById("aramaInput").value = "";
+    document.getElementById("gecmisListesi").innerHTML = "";
+}
+
+function raporlariGoster() {
+    console.log("Raporlar butonu tıklandı");
+    document.getElementById("anaMenu").style.display = "none";
+    document.getElementById("depoEkrani").style.display = "none";
+    document.getElementById("raporlarEkrani").style.display = "block";
+}
+
+function raporlariKapat() {
+    document.getElementById("raporlarEkrani").style.display = "none";
+    if (aktifDepo) {
+        document.getElementById("depoEkrani").style.display = "block";
+    } else {
+        document.getElementById("anaMenu").style.display = "block";
+    }
+}
+
+// ---------- GEÇMİŞ İŞLEMLERİ ----------
+function gecmisAra() {
+    const urunAdi = document.getElementById("aramaInput").value.trim();
+    const urunGecmisi = aktiveGecmisObj();
+    const listDiv = document.getElementById("gecmisListesi");
+    
+    if (!listDiv) return;
+    
+    listDiv.innerHTML = "";
+    
+    if (!urunAdi) {
+        listDiv.textContent = "Lütfen ürün adı girin.";
+        return;
+    }
+    
+    if (!urunGecmisi[urunAdi] || urunGecmisi[urunAdi].length === 0) {
+        listDiv.textContent = "Bu ürünün geçmişi yok.";
+        return;
+    }
+
+    const kayitHareketleri = urunGecmisi[urunAdi].filter(h => h.degisim !== 0);
+    
+    if (kayitHareketleri.length === 0) {
+        listDiv.textContent = "Bu ürünün kayıtlı değişikliği yok.";
+        return;
+    }
+
+    // En yeni hareket en üstte
+    kayitHareketleri.reverse().forEach(h => {
+        const p = document.createElement("p");
+        p.className = "gecmis-item";
+        p.innerHTML = `
+            <strong>${h.tarih}</strong><br>
+            Değişim: <span class="${h.degisim > 0 ? 'artis' : 'azalis'}">${h.degisim > 0 ? '+' : ''}${h.degisim}</span><br>
+            Yeni miktar: ${h.yeniMiktar}
+        `;
+        listDiv.appendChild(p);
+    });
+}
+
+function gecmisTemizle() {
+    const urunAdi = document.getElementById("aramaInput").value.trim();
+    
+    if (!urunAdi) {
+        bildirimGoster("⚠️ Önce bir ürün arayın!", "uyari");
+        return;
+    }
+    
+    if (confirm(`${urunAdi} ürününün tüm geçmişini silmek istediğinize emin misiniz?`)) {
+        const urunGecmisi = aktiveGecmisObj();
+        delete urunGecmisi[urunAdi];
+        kaydetAktifGecmisObj(urunGecmisi);
+        
+        document.getElementById("gecmisListesi").innerHTML = "";
+        bildirimGoster("✅ Geçmiş temizlendi!");
+    }
+}
+
+function gecmisYazdir() {
+    const urunAdi = document.getElementById("aramaInput").value.trim();
+    const urunGecmisi = aktiveGecmisObj();
+    
+    if (!urunAdi || !urunGecmisi[urunAdi]) {
+        bildirimGoster("⚠️ Önce bir ürün arayın!", "uyari");
+        return;
+    }
+    
+    try {
+        let csv = "Tarih,Değişim,Yeni Miktar\n";
+        urunGecmisi[urunAdi].forEach(h => {
+            csv += `"${h.tarih}",${h.degisim},${h.yeniMiktar}\n`;
+        });
+        
+        const blob = new Blob(["\uFEFF" + csv], {type: "text/csv;charset=utf-8;"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${urunAdi.replace(/[^a-zA-Z0-9]/g, '_')}_gecmis.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        bildirimGoster("📝 Geçmiş yazdırıldı!");
+    } catch (error) {
+        bildirimGoster("❌ Geçmiş yazdırılırken hata!", "hata");
+        console.error("Geçmiş yazdırma hatası:", error);
+    }
 }
 
 // ---------- BUTONLARI NORMAL MODA GETİR ----------
 function butonlariNormalModaGetir() {
-  document.querySelectorAll('.butonlar button').forEach(btn => {
-    btn.classList.remove('active');
-  });
-  aktifIslem = null;
-  
-  // Checkbox'ları gizle
-  document.querySelectorAll('.secim').forEach(cb => {
-    if (cb) cb.style.display = 'none';
-  });
+    document.querySelectorAll('.butonlar button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    aktifIslem = null;
+    
+    document.querySelectorAll('.secim').forEach(cb => {
+        if (cb) cb.style.display = 'none';
+    });
 }
 
-// ---------- ÜRÜN SİLME İŞLEMİ ----------
-document.getElementById("urunSilBtn").addEventListener("click", () => {
-  if (aktifIslem === 'sil') {
-    // Checkbox'lar zaten görünür, silme işlemini yap
-    const secilen = Array.from(document.querySelectorAll('.secim:checked'));
-    if (secilen.length === 0) {
-      bildirimGoster("⚠️ Lütfen silmek için ürün seçin!");
-      return;
+// ---------- ÜRÜNLERİ YÜKLE ----------
+function urunleriYukle() {
+    const urunListesi = document.getElementById("urunListesi");
+    if (!urunListesi) {
+        console.error("urunListesi elementi bulunamadı");
+        return;
     }
-
+    
+    urunListesi.innerHTML = '';
+    
+    if (urunler.length === 0) {
+        urunListesi.innerHTML = '<p class="bos-liste">Henüz ürün eklenmemiş</p>';
+        return;
+    }
+    
     const kayitli = aktiveKayitliObj();
-    const urunGecmisi = aktiveGecmisObj();
-
-    secilen.forEach(cb => {
-      const ad = cb.closest('.urun-karti').querySelector('label').textContent.trim();
-      urunler = urunler.filter(u => u !== ad);
-      delete kayitli[ad];
-      delete urunGecmisi[ad];
+    
+    urunler.forEach(ad => {
+        const urunKarti = document.createElement('div');
+        urunKarti.className = 'urun-karti';
+        urunKarti.innerHTML = `
+            <label for="${cssIdFromName(ad)}">${ad}</label>
+            <input type="number" id="${cssIdFromName(ad)}" value="${kayitli[ad] || 0}" min="0" step="0.01">
+        `;
+        urunListesi.appendChild(urunKarti);
+        
+        const input = document.getElementById(cssIdFromName(ad));
+        if (input) {
+            input.addEventListener("change", () => {
+                urunDegisimKaydet(ad, input);
+            });
+        }
     });
-
-    kaydetAktifKayitliObj(kayitli);
-    kaydetAktifGecmisObj(urunGecmisi);
-    kaydetUrunListesiAktif();
-    urunleriYukle();
-    butonlariNormalModaGetir();
-    bildirimGoster(`✅ ${secilen.length} ürün silindi!`);
     
-  } else {
-    // Checkbox'ları göster
-    butonlariNormalModaGetir();
-    aktifIslem = 'sil';
-    document.getElementById("urunSilBtn").classList.add('active');
-    
-    document.querySelectorAll('.urun-karti').forEach(kart => {
-      let checkbox = kart.querySelector('.secim');
-      if (!checkbox) {
-        checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.className = 'secim';
-        kart.insertBefore(checkbox, kart.firstChild);
-      }
-      checkbox.style.display = 'inline-block';
-    });
-  }
-});
+    renkleriGuncelle();
+}
 
-// ---------- ÜRÜN DÜZENLEME İŞLEMİ ----------
-document.getElementById("urunDuzenleBtn").addEventListener("click", () => {
-  if (aktifIslem === 'duzenle') {
-    // Checkbox'lar zaten görünür, düzenleme işlemini yap
-    const secilen = Array.from(document.querySelectorAll('.secim:checked'));
-    if (secilen.length === 0) {
-      bildirimGoster("⚠️ Lütfen düzenlemek için ürün seçin!");
-      return;
-    }
-    if (secilen.length > 1) {
-      bildirimGoster("⚠️ Lütfen sadece bir ürün seçin!");
-      return;
-    }
-
-    const eskiAd = secilen[0].closest('.urun-karti').querySelector('label').textContent.trim();
-    const yeniAd = prompt(`"${eskiAd}" yeni adı:`, eskiAd);
-    if (!yeniAd || yeniAd.trim() === "" || yeniAd === eskiAd) {
-      butonlariNormalModaGetir();
-      return;
-    }
-    if (urunler.includes(yeniAd.trim())) {
-      bildirimGoster("⚠️ Bu isim zaten mevcut!");
-      return;
-    }
-
-    urunler[urunler.indexOf(eskiAd)] = yeniAd.trim();
-
-    const kayitli = aktiveKayitliObj();
-    kayitli[yeniAd.trim()] = kayitli[eskiAd];
-    delete kayitli[eskiAd];
-    kaydetAktifKayitliObj(kayitli);
-
-    const urunGecmisi = aktiveGecmisObj();
-    urunGecmisi[yeniAd.trim()] = urunGecmisi[eskiAd];
-    delete urunGecmisi[eskiAd];
-    kaydetAktifGecmisObj(urunGecmisi);
-
-    kaydetUrunListesiAktif();
-    urunleriYukle();
-    butonlariNormalModaGetir();
-    bildirimGoster("✅ Ürün adı güncellendi!");
-    
-  } else {
-    // Checkbox'ları göster
-    butonlariNormalModaGetir();
-    aktifIslem = 'duzenle';
-    document.getElementById("urunDuzenleBtn").classList.add('active');
-    
-    document.querySelectorAll('.urun-karti').forEach(kart => {
-      let checkbox = kart.querySelector('.secim');
-      if (!checkbox) {
-        checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.className = 'secim';
-        kart.insertBefore(checkbox, kart.firstChild);
-      }
-      checkbox.style.display = 'inline-block';
-    });
-  }
-});
-
-// ---------- ÜRÜN EKLE ----------
-document.getElementById("urunEkleBtn").addEventListener("click", () => {
-  const yeniUrun = prompt("Yeni ürün adını girin:");
-  if(!yeniUrun || yeniUrun.trim()==="") {
-    bildirimGoster("⚠️ Ürün adı boş olamaz!");
-    return;
-  }
-  const ad = yeniUrun.trim();
-  if (urunler.includes(ad)) {
-    bildirimGoster("⚠️ Bu ürün zaten mevcut!");
-    return;
-  }
-  urunler.push(ad);
-  kaydetUrunListesiAktif();
-  urunleriYukle();
-  bildirimGoster(`✅ ${ad} eklendi!`);
-});
-
-// ---------- KAYDET ----------
-document.getElementById("kaydetBtn").addEventListener("click", () => {
-  kaydetUrunListesiAktif();
-  bildirimGoster("✅ Tüm değişiklikler kaydedildi!");
-});
-
-// ---------- YAZDIR (CSV) ----------
-document.getElementById("yazdirBtn").addEventListener("click", () => {
-  const veriler = aktiveKayitliObj();
-  let csv = "Ürün Adı,Miktar\n";
-  Object.keys(veriler).forEach(ad => {
-    csv += `${ad},${veriler[ad]}\n`;
-  });
-  const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = (aktifDepo ? `${aktifDepo}_depo_raporu.csv` : "depo_raporu.csv");
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  bildirimGoster("📝 CSV dosyası indirildi!");
-});
-
-// ---------- GEÇMİŞ İŞLEMLERİ ----------
-document.getElementById("gecmisBtn").addEventListener("click", () => {
-  document.getElementById("urunListesi").style.display = "none";
-  document.querySelector(".butonlar").style.display = "none";
-  document.getElementById("gecmisEkrani").style.display = "block";
-});
-
-document.getElementById("kapatBtn").addEventListener("click", () => {
-  document.getElementById("urunListesi").style.display = "block";
-  document.querySelector(".butonlar").style.display = "flex";
-  document.getElementById("gecmisEkrani").style.display = "none";
-  document.getElementById("aramaInput").value = "";
-  document.getElementById("gecmisListesi").innerHTML = "";
-});
-
-document.getElementById("aramaBtn").addEventListener("click", () => {
-  const urunAdi = document.getElementById("aramaInput").value.trim();
-  const urunGecmisi = aktiveGecmisObj();
-  const listDiv = document.getElementById("gecmisListesi");
-  listDiv.innerHTML = "";
-  
-  if (!urunAdi) {
-    listDiv.textContent = "Lütfen ürün adı girin.";
-    return;
-  }
-  
-  if (!urunGecmisi[urunAdi] || urunGecmisi[urunAdi].length === 0) {
-    listDiv.textContent = "Bu ürünün geçmişi yok.";
-    return;
-  }
-
-  // Sadece kaydetme anındaki değişiklikleri göster (0'dan farklı değişimler)
-  const kayitHareketleri = urunGecmisi[urunAdi].filter(h => h.degisim !== 0);
-  
-  if (kayitHareketleri.length === 0) {
-    listDiv.textContent = "Bu ürünün kayıtlı değişikliği yok.";
-    return;
-  }
-
-  kayitHareketleri.forEach(h => {
-    const p = document.createElement("p");
-    p.textContent = `${h.tarih} → ${h.degisim > 0 ? '+' : ''}${h.degisim} (Yeni miktar: ${h.yeniMiktar})`;
-    listDiv.appendChild(p);
-  });
-});
-
-// ---------- DEPO AÇMA ----------
-function depoAc() {
-  if (!aktifDepo) return;
-  anaMenu.style.display = "none";
-  depoEkrani.style.display = "block";
-  if (depoBaslikElem) {
-    depoBaslikElem.textContent = `${aktifDepo} Deposu`;
-  }
-  urunler = JSON.parse(localStorage.getItem(depoUrunKey(aktifDepo)) || "[]");
-  urunleriYukle();
-  butonlariNormalModaGetir();
+// ---------- CSS ID HELPER ----------
+function cssIdFromName(name) {
+    return "urun_" + name.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_\-]/g, "");
 }
 
 // ---------- DEPO BAZLI KAYDETME HELPER'LARI ----------
 function aktiveKayitliObj() {
-  if (!aktifDepo) return JSON.parse(localStorage.getItem("depoVerileri") || "{}");
-  return JSON.parse(localStorage.getItem(depoVeriKey(aktifDepo)) || "{}");
+    if (!aktifDepo) return JSON.parse(localStorage.getItem("depoVerileri") || "{}");
+    return JSON.parse(localStorage.getItem(`depoVerileri_${aktifDepo}`) || "{}");
 }
 
 function aktiveGecmisObj() {
-  if (!aktifDepo) return JSON.parse(localStorage.getItem("urunGecmisi") || "{}");
-  return JSON.parse(localStorage.getItem(depoGecmisKey(aktifDepo)) || "{}");
+    if (!aktifDepo) return JSON.parse(localStorage.getItem("urunGecmisi") || "{}");
+    return JSON.parse(localStorage.getItem(`urunGecmisi_${aktifDepo}`) || "{}");
 }
 
 function kaydetAktifKayitliObj(obj) {
-  if (!aktifDepo) localStorage.setItem("depoVerileri", JSON.stringify(obj));
-  else localStorage.setItem(depoVeriKey(aktifDepo), JSON.stringify(obj));
+    if (!aktifDepo) localStorage.setItem("depoVerileri", JSON.stringify(obj));
+    else localStorage.setItem(`depoVerileri_${aktifDepo}`, JSON.stringify(obj));
 }
 
 function kaydetAktifGecmisObj(obj) {
-  if (!aktifDepo) localStorage.setItem("urunGecmisi", JSON.stringify(obj));
-  else localStorage.setItem(depoGecmisKey(aktifDepo), JSON.stringify(obj));
+    if (!aktifDepo) localStorage.setItem("urunGecmisi", JSON.stringify(obj));
+    else localStorage.setItem(`urunGecmisi_${aktifDepo}`, JSON.stringify(obj));
 }
 
 function kaydetUrunListesiAktif() {
-  if (!aktifDepo) localStorage.setItem("urunListesi", JSON.stringify(urunler));
-  else localStorage.setItem(depoUrunKey(aktifDepo), JSON.stringify(urunler));
+    if (!aktifDepo) localStorage.setItem("urunListesi", JSON.stringify(urunler));
+    else localStorage.setItem(`urunListesi_${aktifDepo}`, JSON.stringify(urunler));
 }
 
-// ---------- SAYFA YÜKLENMESİ ----------
-window.addEventListener("load", () => {
-  depoListesiniGuncelle();
-  tarihSaatGuncelle();
-  
-  if (aktifDepo && depolar.includes(aktifDepo)) {
-    depoAc();
-  } else {
-    if (aktifDepo && !depolar.includes(aktifDepo)) {
-      aktifDepo = null;
-      localStorage.removeItem("aktifDepo");
+// ---------- SAYFA DURUMUNU AYARLA ----------
+function sayfaDurumunuAyarla() {
+    if (aktifDepo && depolar.includes(aktifDepo)) {
+        depoAc(aktifDepo);
+    } else {
+        if (aktifDepo && !depolar.includes(aktifDepo)) {
+            aktifDepo = null;
+            localStorage.removeItem("aktifDepo");
+        }
+        document.getElementById("anaMenu").style.display = "block";
+        document.getElementById("depoEkrani").style.display = "none";
+        urunler = JSON.parse(localStorage.getItem("urunListesi") || "[]");
     }
-    anaMenu.style.display = "block";
-    depoEkrani.style.display = "none";
-    urunler = JSON.parse(localStorage.getItem("urunListesi") || "[]");
-  }
-});
-
-// ---------- SAYFA YÜKLENİRKEN TEMİZLEME ----------
-function sayfaYuklendigindeTemizle() {
-  // Aktif işlem varsa sıfırla
-  aktifIslem = null;
-  butonlariNormalModaGetir();
-  
-  // Modal'ı kapat
-  if (depoSilModal) {
-    depoSilModal.style.display = 'none';
-  }
-  
-  // Geçmiş ekranını kapat
-  const gecmisEkrani = document.getElementById("gecmisEkrani");
-  if (gecmisEkrani) {
-    gecmisEkrani.style.display = "none";
-  }
-  
-  const urunListesiElem = document.getElementById("urunListesi");
-  if (urunListesiElem) {
-    urunListesiElem.style.display = "block";
-  }
-  
-  const butonlar = document.querySelector(".butonlar");
-  if (butonlar) {
-    butonlar.style.display = "flex";
-  }
 }
 
-// Sayfa yüklendiğinde temizleme fonksiyonunu çağır
-sayfaYuklendigindeTemizle();
+// ---------- BİLDİRİM SİSTEMİ ----------
+function bildirimGoster(mesaj, tur = 'bilgi') {
+    const bildirim = document.createElement('div');
+    bildirim.className = `bildirim ${tur}`;
+    bildirim.textContent = mesaj;
+    bildirim.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        background: ${tur === 'hata' ? '#dc3545' : tur === 'uyari' ? '#ffc107' : '#28a745'};
+        color: white;
+        border-radius: 5px;
+        z-index: 1000;
+        animation: slideIn 0.3s ease;
+    `;
+    
+    document.body.appendChild(bildirim);
+    
+    setTimeout(() => {
+        bildirim.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => {
+            if (bildirim.parentNode) {
+                bildirim.parentNode.removeChild(bildirim);
+            }
+        }, 300);
+    }, 3000);
+}
+
+// ---------- SAYFA YÜKLENDİĞİNDE ÇALIŞTIR ----------
+document.addEventListener('DOMContentLoaded', function() {
+    console.log("DOM içeriği yüklendi, uygulama başlatılıyor...");
+    uygulamayiBaslat();
+});
